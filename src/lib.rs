@@ -5,6 +5,8 @@ use std::io::{BufWriter, Write};
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
+#[must_use]
+/// This structure represents the metadata that will be baked into your executable.
 pub struct PackageMetadata {
     pub name: String,
     pub binary: String,
@@ -25,6 +27,7 @@ pub struct PackageMetadata {
     pub os_version: Option<String>,
 }
 
+#[cfg(target_os = "linux")]
 const OWNER: [u8; 4] = [0x46, 0x44, 0x4f, 0x00];
 
 impl PackageMetadata {
@@ -66,6 +69,11 @@ impl PackageMetadata {
     pub fn write_linker_script_and_inject_argument(self) -> std::io::Result<()> {
         Ok(())
     }
+
+    /// Create a new builder for this type
+    pub fn builder(vendor: impl Into<String>) -> Result<PackageMetadataBuilder, &'static str> {
+        PackageMetadataBuilder::new_from_cargo(vendor)
+    }
 }
 
 #[derive(Debug)]
@@ -86,6 +94,7 @@ pub struct PackageMetadataBuilder {
 }
 
 impl PackageMetadataBuilder {
+    /// Construct a new PackageMetadataBuilder reading the environment variables injected by Cargo
     pub fn new_from_cargo(vendor: impl Into<String>) -> Result<Self, &'static str> {
         let name = std::env::var("CARGO_PKG_NAME").map_err(|_| "CARGO_PKG_NAME unset")?;
         let version = std::env::var("CARGO_PKG_VERSION").map_err(|_| "CARGO_PKG_VERSION unset")?;
@@ -97,6 +106,7 @@ impl PackageMetadataBuilder {
         Ok(builder)
     }
 
+    /// Construct a new empty PackageMetadataBuilder
     pub fn new(
         name: impl Into<String>,
         vendor: impl Into<String>,
@@ -123,50 +133,57 @@ impl PackageMetadataBuilder {
         }
     }
 
+    /// Set the application name
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.name = name.into();
         self
     }
 
+    /// Set this specific binary's name
     pub fn binary(mut self, binary: impl Into<String>) -> Self {
         self.binary = Some(binary.into());
         self
     }
 
+    /// Set the full application version
     pub fn version(mut self, version: impl Into<String>) -> Self {
         self.version = version.into();
         self
     }
 
-    // Set the cpe and appCpe fields. If unset, this will be computed from the other fields
+    /// Set the cpe and appCpe fields. If unset, this will be computed from the other fields
     pub fn cpe(mut self, cpe: impl Into<String>) -> Self {
         self.cpe = Some(cpe.into());
         self
     }
 
-    // Set the VCS hash
+    /// Set the VCS hash
     pub fn hash(mut self, hash: impl Into<String>) -> Self {
         self.hash = Some(hash.into());
         self
     }
 
-    // Set the license, ideally as an SPDX string
+    /// Set the license, ideally as an SPDX string
     pub fn license(mut self, license: impl Into<String>) -> Self {
         self.license = Some(license.into());
         self
     }
 
-    // Set the copyright string
+    /// Set the copyright string
     pub fn copyright(mut self, copyright: impl Into<String>) -> Self {
         self.copyright = Some(copyright.into());
         self
     }
 
+    /// Set the opaque maintainer string
     pub fn maintainer(mut self, maintainer: impl Into<String>) -> Self {
         self.maintainer = Some(maintainer.into());
         self
     }
 
+    /// Build this into a PackageMetadata, returning any errors
+    ///
+    /// You should call .writer_linker_script_and_inject_argument() on the resultant value.
     pub fn build(self) -> Result<PackageMetadata, &'static str> {
         let short_release_version = self
             .version
