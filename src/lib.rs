@@ -1,7 +1,5 @@
 use serde::Serialize;
-use std::io::{BufRead, BufReader};
-#[cfg(target_os = "linux")]
-use std::io::{BufWriter, Write};
+use std::io::{BufRead, BufReader, BufWriter, Write};
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -27,14 +25,16 @@ pub struct PackageMetadata {
     pub os_version: Option<String>,
 }
 
-#[cfg(target_os = "linux")]
 const OWNER: [u8; 4] = [0x46, 0x44, 0x4f, 0x00];
 
 impl PackageMetadata {
-    #[cfg(target_os = "linux")]
+    #[allow(unused)]
     fn write_linker_script<W: Write>(self, target: W) -> std::io::Result<()> {
         let mut bw = BufWriter::new(target);
-        let serialized = serde_json::to_vec(&self)?;
+        let mut serialized = serde_json::to_vec(&self)?;
+        while serialized.len() % 4 != 0 {
+            serialized.push(0x00);
+        }
         writeln!(&mut bw, "SECTIONS")?;
         writeln!(&mut bw, "{{")?;
         // TODO: we should set (READONLY) here, but it only works on GNU LD, not on LLD
@@ -245,7 +245,6 @@ fn get_os_metadata() -> Result<(String, Option<String>), Box<dyn std::error::Err
     }
 }
 
-#[cfg(target_os = "linux")]
 fn write_bytes<W: std::io::Write>(writer: &mut W, bytes: &[u8]) -> std::io::Result<()> {
     for byte in bytes {
         writeln!(writer, "        BYTE({byte:#02x})")?;
