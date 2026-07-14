@@ -39,6 +39,11 @@ jobs:
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       - name: Run tests (all features)
         run: cargo test --all --all-features --all-targets
+      - name: Build example application
+        run: cargo build
+        working-directory: demo/demo-app/
+      - name: Dump section
+        run: readelf -p .note.package demo/demo-app/target/debug/demo-app
   prek:
     name: Validate prek
     runs-on: ubuntu-latest
